@@ -1,0 +1,2 @@
+syncColorChips();
+renderCharTelemetry();

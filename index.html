@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PVD Стеганографія</title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="pvd-core.js"></script>
+    <script defer src="pair-ui.js"></script>
+    <script defer src="image-engine.js"></script>
+    <script defer src="main.js"></script>
+</head>
+<body>
+
+    <div class="workspace-wrapper">
+        
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                PVD <span>Стеганографія</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <button id="lnk-pair" class="nav-link active" onclick="switchWorkspace('pair')">
+                        <span>🔬</span> Попарна обробка
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button id="lnk-image" class="nav-link" onclick="switchWorkspace('image')">
+                        <span>🖼</span> Обробка зображень
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            
+            <div id="deck-pair" class="deck-view active">
+                <div class="grid-layout">
+                    
+                    <div class="control-column">
+                        <div class="panel-card">
+                            <div class="panel-header">Вхідні дані</div>
+                            
+                            <div class="split-fields">
+                                <div class="input-wrapper">
+                                    <label>Піксель P₁ (0-255)</label>
+                                    <input type="number" id="node-p1" class="input-control" value="150" min="0" max="255" oninput="syncColorChips()">
+                                </div>
+                                <div class="input-wrapper">
+                                    <label>Піксель P₂ (0-255)</label>
+                                    <input type="number" id="node-p2" class="input-control" value="184" min="0" max="255" oninput="syncColorChips()">
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem;">
+                                <div class="pixel-color-chip">
+                                    <span class="chip-color" id="chip-p1"></span> <span>P₁</span>
+                                </div>
+                                <div class="pixel-color-chip">
+                                    <span class="chip-color" id="chip-p2"></span> <span>P₂</span>
+                                </div>
+                            </div>
+
+                            <div class="panel-header" style="margin-top: 2rem;">Тип вводу повідомлення</div>
+                            <div class="tech-toggle-group">
+                                <input type="radio" id="mode-char" name="pairPayloadType" value="char" checked onchange="togglePairFormat()">
+                                <label for="mode-char" class="tech-toggle-btn">Символ (UTF-8)</label>
+                                
+                                <input type="radio" id="mode-bin" name="pairPayloadType" value="bin" onchange="togglePairFormat()">
+                                <label for="mode-bin" class="tech-toggle-btn">Бінарний рядок</label>
+                            </div>
+
+                            <div id="wrapper-payload-char" class="input-wrapper">
+                                <label>Символ для вбудовування</label>
+                                <input type="text" id="payload-char" class="input-control" value="D" maxlength="1" oninput="renderCharTelemetry()">
+                                <div id="telemetry-ascii" style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem; font-family: var(--font-mono);"></div>
+                            </div>
+
+                            <div id="wrapper-payload-bin" class="input-wrapper hidden">
+                                <label>Бінарний рядок (тільки 0 і 1)</label>
+                                <input type="text" id="payload-bin" class="input-control" value="01100101">
+                            </div>
+
+                            <button class="action-btn btn-mint" onclick="executePairEmbedding()">Вбудувати</button>
+                            <div id="console-pair-embed-status" class="console-status hidden"></div>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-header">Вилучення прихованих бітів</div>
+                            <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: -1rem; margin-bottom: 1.5rem;">
+                                Заповнюються автоматично після вбудовування.
+                            </p>
+                            <div class="split-fields">
+                                <div class="input-wrapper">
+                                    <label>P₁ новий</label>
+                                    <input type="number" id="node-extract-p1" class="input-control" min="0" max="255">
+                                </div>
+                                <div class="input-wrapper">
+                                    <label>P₂ новий</label>
+                                    <input type="number" id="node-extract-p2" class="input-control" min="0" max="255">
+                                </div>
+                            </div>
+                            <button class="action-btn btn-mint" onclick="executePairExtraction()">Вилучити</button>
+                            
+                            <div id="console-pair-extract-output" class="hidden" style="margin-top: 1.5rem;">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div class="log-column">
+                        <div class="panel-card">
+                            <div class="panel-header">Кроки вбудовування</div>
+                            <div id="terminal-placeholder" style="text-align: center; color: var(--text-dim); padding: 3rem 0; font-size: 0.9rem;">
+                                Введіть значення та натисніть «Вбудувати».
+                            </div>
+                            <div id="terminal-pvd-steps" class="terminal-log hidden"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="deck-image" class="deck-view">
+                <div class="grid-layout">
+                    
+                    <div class="control-column">
+                        <div class="panel-card">
+                            <div class="panel-header">Вхідне зображення (PNG/BMP)</div>
+                            <input type="file" id="file-media-picker" accept="image/png, image/bmp" class="hidden" onchange="processIncomingImage(event)">
+                            <button class="action-btn btn-outline" onclick="document.getElementById('file-media-picker').click()">Завантажити зображення</button>
+                            
+                            <div class="studio-canvas-holder" style="margin-top: 1.5rem;">
+                                <canvas id="view-canvas-original" class="studio-preview hidden"></canvas>
+                                <div id="text-studio-placeholder" class="studio-placeholder-text">Зображення не вибрано</div>
+                            </div>
+                            
+                            <ul class="telemetry-list" id="meta-image-telemetry"></ul>
+                        </div>
+
+                        <div class="panel-card">
+                            <div class="panel-header">Дія</div>
+                            
+                            <div class="tech-toggle-group">
+                                <input type="radio" id="action-embed" name="imageEngineAction" value="embed" checked onchange="toggleImageEngineAction()">
+                                <label for="action-embed" class="tech-toggle-btn">Вбудувати повідомлення</label>
+                                
+                                <input type="radio" id="action-extract" name="imageEngineAction" value="extract" onchange="toggleImageEngineAction()">
+                                <label for="action-extract" class="tech-toggle-btn">Вилучити повідомлення</label>
+                            </div>
+
+                            <div id="panel-engine-embed">
+                                <div class="input-wrapper">
+                                    <label>Текст для приховування</label>
+                                    <textarea id="field-secret-payload" class="input-control" placeholder="Введіть текст..."></textarea>
+                                </div>
+                                <button class="action-btn btn-mint" onclick="runImageEmbeddingEngine()">Вбудувати у зображення</button>
+                            </div>
+
+                            <div id="panel-engine-extract" class="hidden">
+                                <button class="action-btn btn-mint" onclick="runImageExtractionEngine()">Вилучити з зображення</button>
+                                <div class="input-wrapper" style="margin-top: 1.5rem;">
+                                    <label>Знайдене повідомлення:</label>
+                                    <textarea id="field-extracted-payload" class="input-control" readonly style="color: var(--accent-mint); font-family: var(--font-mono);"></textarea>
+                                </div>
+                            </div>
+
+                            <div id="console-image-engine-status" class="console-status hidden"></div>
+                        </div>
+                    </div>
+
+                    <div class="log-column">
+                        <div class="panel-card">
+                            <div class="panel-header">Результат</div>
+                            
+                            <div class="studio-canvas-holder">
+                                <canvas id="view-canvas-stego" class="studio-preview hidden"></canvas>
+                                <div id="text-stego-placeholder" class="studio-placeholder-text">Тут з'явиться результат</div>
+                            </div>
+
+                            <div id="telemetry-stego-metrics" style="font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.6; color: var(--text-dim);"></div>
+                            <button id="action-download-stego" class="action-btn btn-mint hidden" style="margin-top: 1.5rem;" onclick="triggerStegoDownload()">Зберегти стего-зображення</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+    </div>
+</body>
+</html>
